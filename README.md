@@ -8,8 +8,8 @@
 
 Typed, testable, and queueable actions for Laravel, with workflows to orchestrate them.
 
-> [!WARNING]
-> This package is under development and has no stable release yet. The workflow API, in particular, may change while it is validated in a real application.
+> [!NOTE]
+> The workflow API may still change while it is validated in a real application.
 
 Requires PHP 8.3+ and Laravel 12 or 13.
 
@@ -117,7 +117,7 @@ The value becomes `[sensitive]` in the event payloads, when the action is writte
 
 If the parameter is not promoted, the property holding its value is only hidden when it has the same name. PHP does not allow the attribute on properties, so a property that doesn't come from a constructor parameter cannot be marked.
 
-A queued action is stored as it is, so one with sensitive parameters must also implement Laravel's `ShouldBeEncrypted`, or `dispatch` throws a `LogicException`. This check runs when the job is written to the queue, so it doesn't run under `Queue::fake()`.
+A queued action is stored as it is, so one with sensitive parameters must also implement Laravel's `ShouldBeEncrypted`, or `dispatch` throws a `LogicException`. In a chain, the next jobs are stored inside the payload of the current one, so this also applies to every job before the last action with sensitive parameters. The check runs when the job is written to the queue, so it doesn't run under `Queue::fake()`.
 
 > [!IMPORTANT]
 > Stack traces are only partly covered: PHP hides the value in the frame of the constructor, but `execute` and the container also receive it, so it still appears in their frames unless `zend.exception_ignore_args` is on, as recommended for production. The message of an exception is also not filtered, and neither is what `handle()` itself logs.
