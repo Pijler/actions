@@ -1,0 +1,11 @@
+laravel: "./workbench"
+
+providers:
+  - Pijler\Actions\ServiceProvider
+  - Workbench\App\Providers\WorkbenchServiceProvider
+
+workbench:
+  start: "/"
+  install: true
+  discovers:
+    web: true
