@@ -95,6 +95,45 @@ test('it should still execute an action with sensitive parameters without encryp
     expect(UnencryptedLogin::execute('secret'))->toBe('secret');
 });
 
+test('it should refuse sensitive parameters after an unencrypted job in a chain', function (array $jobs) {
+    Bus::chain($jobs)->dispatch();
+})->with([
+    'action first' => [function () {
+        return [new Record('x'), new Login('a@b.c', 'secret')];
+    }],
+    'other job first' => [function () {
+        return [new PlainJob, new Login('a@b.c', 'secret')];
+    }],
+    'unencrypted job in the middle' => [function () {
+        return [new Login('a@b.c', 'secret'), new Record('x'), new Login('a@b.c', 'secret')];
+    }],
+    'unencrypted action in the chain' => [function () {
+        return [new Login('a@b.c', 'secret'), new UnencryptedLogin('secret')];
+    }],
+])->throws(LogicException::class, 'must implement ShouldBeEncrypted');
+
+test('it should refuse the chain before running any of its jobs', function () {
+    expect(function () {
+        Bus::chain([new Record('x'), new Login('a@b.c', 'secret')])->dispatch();
+    })->toThrow(LogicException::class);
+
+    expect(Record::$runs)->toBe([]);
+});
+
+test('it should accept a chain that keeps sensitive parameters encrypted', function () {
+    Bus::chain([new Login('a@b.c', 'first'), new Login('a@b.c', 'second'), new Record('x'), new PlainJob])->dispatch();
+
+    expect(Login::$runs)->toBe(['first', 'second']);
+
+    expect(Record::$runs)->toBe(['x']);
+});
+
+test('it should not get in the way of chains without sensitive parameters', function () {
+    Bus::chain([new PlainJob, new Record('x')])->dispatch();
+
+    expect(Record::$runs)->toBe(['x']);
+});
+
 test('it should dispatch the events of each action in a chain', function () {
     $started = collect();
 
@@ -178,6 +217,12 @@ describe('database queue', function () {
             ->not->toContain('ana@example.com');
     });
 
+    test('it should keep sensitive parameters of a chain out of the stored payload', function () {
+        Bus::chain([new Login('a@b.c', 'first'), new Login('a@b.c', 'second'), new Record('x')])->dispatch();
+
+        expect(DB::table('jobs')->value('payload'))->not->toContain('second');
+    });
+
     test('it should decrypt and run the stored action in a worker', function () {
         Event::fake([ActionFinished::class]);
 
@@ -224,5 +269,15 @@ class BatchedRecord extends Action implements ShouldQueue
     public function handle(): void
     {
         static::$runs[] = $this->value;
+    }
+}
+
+class PlainJob implements ShouldQueue
+{
+    use Queueable;
+
+    public function handle(): void
+    {
+        //
     }
 }
