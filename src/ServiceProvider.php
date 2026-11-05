@@ -15,12 +15,24 @@ class ServiceProvider extends LaravelServiceProvider
      */
     public function boot(): void
     {
-        Queue::createPayloadUsing(function (?string $connection, ?string $queue, array $payload) {
-            RunThroughLifecycle::register(data_get($payload, 'data.command'));
+        $this->bootCommands();
 
-            return [];
-        });
+        $this->bootQueuePayloadUsing();
+    }
 
+    /**
+     * Register any application services.
+     */
+    public function register(): void
+    {
+        //
+    }
+
+    /**
+     * Boot the console commands.
+     */
+    private function bootCommands(): void
+    {
         if ($this->app->runningInConsole()) {
             $this->commands([
                 MakeActionCommand::class,
@@ -30,10 +42,14 @@ class ServiceProvider extends LaravelServiceProvider
     }
 
     /**
-     * Register any application services.
+     * Boot the queue payload using callback.
      */
-    public function register(): void
+    private function bootQueuePayloadUsing(): void
     {
-        //
+        Queue::createPayloadUsing(function (?string $connection, ?string $queue, array $payload) {
+            RunThroughLifecycle::register(data_get($payload, 'data.command'));
+
+            return [];
+        });
     }
 }
