@@ -1,0 +1,33 @@
+<?php
+
+namespace {{ namespace }};
+
+use Pijler\Actions\Workflow;
+
+class {{ class }} extends Workflow
+{
+    /**
+     * Create a new workflow instance.
+     */
+    public function __construct(
+        protected {{ context }} $context,
+    ) {}
+
+    /**
+     * Get the context shared by the steps.
+     */
+    protected function context(): {{ context }}
+    {
+        return $this->context;
+    }
+
+    /**
+     * Get the steps of the workflow.
+     */
+    protected function steps(): array
+    {
+        return [
+            //
+        ];
+    }
+}
