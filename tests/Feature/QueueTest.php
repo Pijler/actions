@@ -1,10 +1,15 @@
 <?php
 
+use Illuminate\Bus\Batchable;
+use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Queue\Middleware\Skip;
+use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Schema;
+use Pijler\Actions\Action;
 use Pijler\Actions\Events\ActionFailed;
 use Pijler\Actions\Events\ActionFinished;
 use Pijler\Actions\Events\ActionStarted;
@@ -18,6 +23,8 @@ beforeEach(function () {
     Login::$runs = [];
 
     Record::$runs = [];
+
+    BatchedRecord::$runs = [];
 });
 
 test('it should push the action itself onto the queue', function () {
@@ -78,6 +85,57 @@ test('it should dispatch the events of a queued action, with sensitive values hi
     Event::assertDispatched(ActionFinished::class, $check);
 
     Event::assertNotDispatched(ActionFailed::class);
+});
+
+test('it should refuse to queue sensitive parameters without encryption', function () {
+    UnencryptedLogin::dispatch('secret');
+})->throws(LogicException::class, 'must implement ShouldBeEncrypted');
+
+test('it should still execute an action with sensitive parameters without encryption', function () {
+    expect(UnencryptedLogin::execute('secret'))->toBe('secret');
+});
+
+test('it should dispatch the events of each action in a chain', function () {
+    $started = collect();
+
+    Event::listen(ActionStarted::class, function (ActionStarted $event) use ($started) {
+        $started->push(data_get($event->parameters, 'value'));
+    });
+
+    Bus::chain([new Record('first'), new Record('second')])->dispatch();
+
+    expect(Record::$runs)->toBe(['first', 'second']);
+
+    expect($started->all())->toBe(['first', 'second']);
+});
+
+test('it should dispatch the events of each action in a batch', function () {
+    config(['queue.batching.database' => config('database.default')]);
+
+    Schema::create('job_batches', function ($table) {
+        $table->string('id')->primary();
+        $table->string('name');
+        $table->integer('total_jobs');
+        $table->integer('pending_jobs');
+        $table->integer('failed_jobs');
+        $table->longText('failed_job_ids');
+        $table->mediumText('options')->nullable();
+        $table->integer('cancelled_at')->nullable();
+        $table->integer('created_at');
+        $table->integer('finished_at')->nullable();
+    });
+
+    $started = collect();
+
+    Event::listen(ActionStarted::class, function (ActionStarted $event) use ($started) {
+        $started->push(data_get($event->parameters, 'value'));
+    });
+
+    Bus::batch([new BatchedRecord('first'), new BatchedRecord('second')])->dispatch();
+
+    expect(BatchedRecord::$runs)->toBe(['first', 'second']);
+
+    expect($started->all())->toBe(['first', 'second']);
 });
 
 describe('database queue', function () {
@@ -142,3 +200,29 @@ describe('database queue', function () {
         expect(Record::$runs)->toBe([]);
     });
 });
+
+class UnencryptedLogin extends Action implements ShouldQueue
+{
+    use Queueable;
+
+    public function __construct(#[SensitiveParameter] public string $password) {}
+
+    public function handle(): string
+    {
+        return $this->password;
+    }
+}
+
+class BatchedRecord extends Action implements ShouldQueue
+{
+    use Batchable, Queueable;
+
+    public static array $runs = [];
+
+    public function __construct(public string $value) {}
+
+    public function handle(): void
+    {
+        static::$runs[] = $this->value;
+    }
+}
