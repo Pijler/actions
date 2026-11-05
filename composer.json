@@ -1,0 +1,55 @@
+{
+    "name": "pijler/actions",
+    "type": "library",
+    "description": "Typed, testable, and queueable actions for Laravel, with workflows to orchestrate them.",
+    "keywords": ["actions", "laravel", "package", "workflows"],
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "João Pedro Lopes",
+            "email": "joaopalopes24@gmail.com"
+        }
+    ],
+    "require": {
+        "php": "^8.3",
+        "laravel/framework": "^12.0|^13.0"
+    },
+    "require-dev": {
+        "pestphp/pest": "^4.4",
+        "pestphp/pest-plugin-laravel": "^4.1",
+        "orchestra/testbench": "^10.0|^11.0",
+        "laravel/pint": "^1.29"
+    },
+    "autoload": {
+        "psr-4": {
+            "Pijler\\Actions\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Tests\\": "tests/",
+            "Workbench\\App\\": "workbench/app/"
+        }
+    },
+    "scripts": {
+        "lint": [
+            "@php vendor/bin/pint --ansi"
+        ],
+        "test": [
+            "@php vendor/bin/pest"
+        ]
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Pijler\\Actions\\ServiceProvider"
+            ]
+        }
+    },
+    "config": {
+        "allow-plugins": {
+            "pestphp/pest-plugin": true
+        }
+    },
+    "minimum-stability": "stable"
+}
