@@ -117,8 +117,7 @@ The value becomes `[sensitive]` in the event payloads, when the action is writte
 
 If the parameter is not promoted, the property holding its value is only hidden when it has the same name. PHP does not allow the attribute on properties, so a property that doesn't come from a constructor parameter cannot be marked.
 
-> [!CAUTION]
-> The attribute does not protect the queue. A queued action is stored as it is, so implement Laravel's `ShouldBeEncrypted` in any queued action with sensitive parameters, or they stay in plain text in the queue and in `failed_jobs`.
+A queued action is stored as it is, so one with sensitive parameters must also implement Laravel's `ShouldBeEncrypted`, or `dispatch` throws a `LogicException`. This check runs when the job is written to the queue, so it doesn't run under `Queue::fake()`.
 
 > [!IMPORTANT]
 > Stack traces are only partly covered: PHP hides the value in the frame of the constructor, but `execute` and the container also receive it, so it still appears in their frames unless `zend.exception_ignore_args` is on, as recommended for production. The message of an exception is also not filtered, and neither is what `handle()` itself logs.
